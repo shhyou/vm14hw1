@@ -26,7 +26,7 @@ static inline void shack_init(CPUState *env)
  * shack_set_shadow()
  *  Insert a guest eip to host eip pair if it is not yet created.
  */
-inline void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
+void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
 {
 }
 
