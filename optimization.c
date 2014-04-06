@@ -70,11 +70,11 @@ static target_ulong itbc_query_eip;
 void *helper_lookup_ibtc(target_ulong guest_eip)
 {
     const target_ulong idx = guest_eip & IBTC_CACHE_MASK;
-    itbc_query_eip = guest_eip;
     if (guest_eip == itbc_tbl->htable[idx].guest_eip) {
-        return itbc_tbl->htable[idx].tb;
+        return itbc_tbl->htable[idx].tb->tc_ptr;
     } else {
         update_ibtc = 1;
+        itbc_query_eip = guest_eip;
         return optimization_ret_addr;
     }
 }
