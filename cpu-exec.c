@@ -398,14 +398,7 @@ int cpu_exec(CPUState *env1)
                     env->eflags = env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
                     log_cpu_state(env, X86_DUMP_CCOP);
                     env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
-#elif defined(TARGET_M68K)
-                    cpu_m68k_flush_flags(env, env->cc_op);
-                    env->cc_op = CC_OP_FLAGS;
-                    env->sr = (env->sr & 0xffe0)
-                              | env->cc_dest | (env->cc_x << 4);
-                    log_cpu_state(env, 0);
-#else
-                    log_cpu_state(env, 0);
+
 #endif
                 }
 #endif /* DEBUG_DISAS || CONFIG_DEBUG_EXEC */
