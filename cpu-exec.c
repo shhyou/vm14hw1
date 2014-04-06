@@ -252,20 +252,6 @@ int cpu_exec(CPUState *env1)
         CC_OP = CC_OP_EFLAGS;
         env->eflags &= ~(DF_MASK | CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
     }
-#elif defined(TARGET_SPARC)
-#elif defined(TARGET_M68K)
-    env->cc_op = CC_OP_FLAGS;
-    env->cc_dest = env->sr & 0xf;
-    env->cc_x = (env->sr >> 4) & 1;
-#elif defined(TARGET_ALPHA)
-#elif defined(TARGET_ARM)
-#elif defined(TARGET_PPC)
-#elif defined(TARGET_MICROBLAZE)
-#elif defined(TARGET_MIPS)
-#elif defined(TARGET_SH4)
-#elif defined(TARGET_CRIS)
-#elif defined(TARGET_S390X)
-    /* XXXXX */
 #else
 #error unsupported target CPU
 #endif
@@ -274,11 +260,6 @@ int cpu_exec(CPUState *env1)
     /* prepare setjmp context for exception handling */
     for(;;) {
         if (setjmp(env->jmp_env) == 0) {
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-                    env = cpu_single_env;
-#define env cpu_single_env
-#endif
             /* if an exception is pending, we execute it here */
             if (env->exception_index >= 0) {
                 if (env->exception_index >= EXCP_INTERRUPT) {
@@ -313,24 +294,6 @@ int cpu_exec(CPUState *env1)
                                  env->exception_next_eip, 0);
                     /* successfully delivered */
                     env->old_exception = -1;
-#elif defined(TARGET_PPC)
-                    do_interrupt(env);
-#elif defined(TARGET_MICROBLAZE)
-                    do_interrupt(env);
-#elif defined(TARGET_MIPS)
-                    do_interrupt(env);
-#elif defined(TARGET_SPARC)
-                    do_interrupt(env);
-#elif defined(TARGET_ARM)
-                    do_interrupt(env);
-#elif defined(TARGET_SH4)
-                    do_interrupt(env);
-#elif defined(TARGET_ALPHA)
-                    do_interrupt(env);
-#elif defined(TARGET_CRIS)
-                    do_interrupt(env);
-#elif defined(TARGET_M68K)
-                    do_interrupt(0);
 #endif
                     env->exception_index = -1;
 #endif
@@ -358,16 +321,6 @@ int cpu_exec(CPUState *env1)
                         env->exception_index = EXCP_DEBUG;
                         cpu_loop_exit();
                     }
-#if defined(TARGET_ARM) || defined(TARGET_SPARC) || defined(TARGET_MIPS) || \
-    defined(TARGET_PPC) || defined(TARGET_ALPHA) || defined(TARGET_CRIS) || \
-    defined(TARGET_MICROBLAZE)
-                    if (interrupt_request & CPU_INTERRUPT_HALT) {
-                        env->interrupt_request &= ~CPU_INTERRUPT_HALT;
-                        env->halted = 1;
-                        env->exception_index = EXCP_HLT;
-                        cpu_loop_exit();
-                    }
-#endif
 #if defined(TARGET_I386)
                     if (interrupt_request & CPU_INTERRUPT_INIT) {
                             svm_check_intercept(SVM_EXIT_INIT);
@@ -404,11 +357,6 @@ int cpu_exec(CPUState *env1)
                             env->interrupt_request &= ~(CPU_INTERRUPT_HARD | CPU_INTERRUPT_VIRQ);
                             intno = cpu_get_pic_interrupt(env);
                             qemu_log_mask(CPU_LOG_TB_IN_ASM, "Servicing hardware INT=0x%02x\n", intno);
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-                    env = cpu_single_env;
-#define env cpu_single_env
-#endif
                             do_interrupt(intno, 0, 0, 0, 1);
                             /* ensure that no TB jump will be modified as
                                the program flow was changed */
@@ -427,119 +375,6 @@ int cpu_exec(CPUState *env1)
                             next_tb = 0;
 #endif
                         }
-                    }
-#elif defined(TARGET_PPC)
-#if 0
-                    if ((interrupt_request & CPU_INTERRUPT_RESET)) {
-                        cpu_reset(env);
-                    }
-#endif
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        ppc_hw_interrupt(env);
-                        if (env->pending_interrupts == 0)
-                            env->interrupt_request &= ~CPU_INTERRUPT_HARD;
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_MICROBLAZE)
-                    if ((interrupt_request & CPU_INTERRUPT_HARD)
-                        && (env->sregs[SR_MSR] & MSR_IE)
-                        && !(env->sregs[SR_MSR] & (MSR_EIP | MSR_BIP))
-                        && !(env->iflags & (D_FLAG | IMM_FLAG))) {
-                        env->exception_index = EXCP_IRQ;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_MIPS)
-                    if ((interrupt_request & CPU_INTERRUPT_HARD) &&
-                        (env->CP0_Status & env->CP0_Cause & CP0Ca_IP_mask) &&
-                        (env->CP0_Status & (1 << CP0St_IE)) &&
-                        !(env->CP0_Status & (1 << CP0St_EXL)) &&
-                        !(env->CP0_Status & (1 << CP0St_ERL)) &&
-                        !(env->hflags & MIPS_HFLAG_DM)) {
-                        /* Raise it */
-                        env->exception_index = EXCP_EXT_INTERRUPT;
-                        env->error_code = 0;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_SPARC)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        if (cpu_interrupts_enabled(env) &&
-                            env->interrupt_index > 0) {
-                            int pil = env->interrupt_index & 0xf;
-                            int type = env->interrupt_index & 0xf0;
-
-                            if (((type == TT_EXTINT) &&
-                                  cpu_pil_allowed(env, pil)) ||
-                                  type != TT_EXTINT) {
-                                env->exception_index = env->interrupt_index;
-                                do_interrupt(env);
-                                next_tb = 0;
-                            }
-                        }
-                    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
-                        //do_interrupt(0, 0, 0, 0, 0);
-                        env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-                    }
-#elif defined(TARGET_ARM)
-                    if (interrupt_request & CPU_INTERRUPT_FIQ
-                        && !(env->uncached_cpsr & CPSR_F)) {
-                        env->exception_index = EXCP_FIQ;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-                    /* ARMv7-M interrupt return works by loading a magic value
-                       into the PC.  On real hardware the load causes the
-                       return to occur.  The qemu implementation performs the
-                       jump normally, then does the exception return when the
-                       CPU tries to execute code at the magic address.
-                       This will cause the magic PC value to be pushed to
-                       the stack if an interrupt occured at the wrong time.
-                       We avoid this by disabling interrupts when
-                       pc contains a magic address.  */
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && ((IS_M(env) && env->regs[15] < 0xfffffff0)
-                            || !(env->uncached_cpsr & CPSR_I))) {
-                        env->exception_index = EXCP_IRQ;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_SH4)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_ALPHA)
-                    if (interrupt_request & CPU_INTERRUPT_HARD) {
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_CRIS)
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && (env->pregs[PR_CCS] & I_FLAG)
-                        && !env->locked_irq) {
-                        env->exception_index = EXCP_IRQ;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-                    if (interrupt_request & CPU_INTERRUPT_NMI
-                        && (env->pregs[PR_CCS] & M_FLAG)) {
-                        env->exception_index = EXCP_NMI;
-                        do_interrupt(env);
-                        next_tb = 0;
-                    }
-#elif defined(TARGET_M68K)
-                    if (interrupt_request & CPU_INTERRUPT_HARD
-                        && ((env->sr & SR_I) >> SR_I_SHIFT)
-                            < env->pending_level) {
-                        /* Real hardware gets the interrupt vector via an
-                           IACK cycle at this point.  Current emulated
-                           hardware doesn't rely on this, so we
-                           provide/save the vector when the interrupt is
-                           first signalled.  */
-                        env->exception_index = env->pending_vector;
-                        do_interrupt(1);
-                        next_tb = 0;
                     }
 #endif
                    /* Don't use the cached interupt_request value,
