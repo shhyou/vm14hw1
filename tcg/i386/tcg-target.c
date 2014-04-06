@@ -224,66 +224,66 @@ static inline int tcg_target_const_match(tcg_target_long val,
 }
 
 #if TCG_TARGET_REG_BITS == 64
-# define LOWREGMASK(x)	((x) & 7)
+# define LOWREGMASK(x)        ((x) & 7)
 #else
-# define LOWREGMASK(x)	(x)
+# define LOWREGMASK(x)        (x)
 #endif
 
-#define P_EXT		0x100		/* 0x0f opcode prefix */
-#define P_DATA16	0x200		/* 0x66 opcode prefix */
+#define P_EXT                0x100                /* 0x0f opcode prefix */
+#define P_DATA16        0x200                /* 0x66 opcode prefix */
 #if TCG_TARGET_REG_BITS == 64
-# define P_ADDR32	0x400		/* 0x67 opcode prefix */
-# define P_REXW		0x800		/* Set REX.W = 1 */
-# define P_REXB_R	0x1000		/* REG field as byte register */
-# define P_REXB_RM	0x2000		/* R/M field as byte register */
+# define P_ADDR32        0x400                /* 0x67 opcode prefix */
+# define P_REXW                0x800                /* Set REX.W = 1 */
+# define P_REXB_R        0x1000                /* REG field as byte register */
+# define P_REXB_RM        0x2000                /* R/M field as byte register */
 #else
-# define P_ADDR32	0
-# define P_REXW		0
-# define P_REXB_R	0
-# define P_REXB_RM	0
+# define P_ADDR32        0
+# define P_REXW                0
+# define P_REXB_R        0
+# define P_REXB_RM        0
 #endif
 
-#define OPC_ARITH_EvIz	(0x81)
-#define OPC_ARITH_EvIb	(0x83)
-#define OPC_ARITH_GvEv	(0x03)		/* ... plus (ARITH_FOO << 3) */
-#define OPC_ADD_GvEv	(OPC_ARITH_GvEv | (ARITH_ADD << 3))
-#define OPC_BSWAP	(0xc8 | P_EXT)
-#define OPC_CALL_Jz	(0xe8)
-#define OPC_CMP_GvEv	(OPC_ARITH_GvEv | (ARITH_CMP << 3))
-#define OPC_DEC_r32	(0x48)
-#define OPC_IMUL_GvEv	(0xaf | P_EXT)
-#define OPC_IMUL_GvEvIb	(0x6b)
-#define OPC_IMUL_GvEvIz	(0x69)
-#define OPC_INC_r32	(0x40)
-#define OPC_JCC_long	(0x80 | P_EXT)	/* ... plus condition code */
-#define OPC_JCC_short	(0x70)		/* ... plus condition code */
-#define OPC_JMP_long	(0xe9)
-#define OPC_JMP_short	(0xeb)
+#define OPC_ARITH_EvIz        (0x81)
+#define OPC_ARITH_EvIb        (0x83)
+#define OPC_ARITH_GvEv        (0x03)                /* ... plus (ARITH_FOO << 3) */
+#define OPC_ADD_GvEv        (OPC_ARITH_GvEv | (ARITH_ADD << 3))
+#define OPC_BSWAP        (0xc8 | P_EXT)
+#define OPC_CALL_Jz        (0xe8)
+#define OPC_CMP_GvEv        (OPC_ARITH_GvEv | (ARITH_CMP << 3))
+#define OPC_DEC_r32        (0x48)
+#define OPC_IMUL_GvEv        (0xaf | P_EXT)
+#define OPC_IMUL_GvEvIb        (0x6b)
+#define OPC_IMUL_GvEvIz        (0x69)
+#define OPC_INC_r32        (0x40)
+#define OPC_JCC_long        (0x80 | P_EXT)        /* ... plus condition code */
+#define OPC_JCC_short        (0x70)                /* ... plus condition code */
+#define OPC_JMP_long        (0xe9)
+#define OPC_JMP_short        (0xeb)
 #define OPC_LEA         (0x8d)
-#define OPC_MOVB_EvGv	(0x88)		/* stores, more or less */
-#define OPC_MOVL_EvGv	(0x89)		/* stores, more or less */
-#define OPC_MOVL_GvEv	(0x8b)		/* loads, more or less */
-#define OPC_MOVL_EvIz	(0xc7)
+#define OPC_MOVB_EvGv        (0x88)                /* stores, more or less */
+#define OPC_MOVL_EvGv        (0x89)                /* stores, more or less */
+#define OPC_MOVL_GvEv        (0x8b)                /* loads, more or less */
+#define OPC_MOVL_EvIz        (0xc7)
 #define OPC_MOVL_Iv     (0xb8)
-#define OPC_MOVSBL	(0xbe | P_EXT)
-#define OPC_MOVSWL	(0xbf | P_EXT)
-#define OPC_MOVSLQ	(0x63 | P_REXW)
-#define OPC_MOVZBL	(0xb6 | P_EXT)
-#define OPC_MOVZWL	(0xb7 | P_EXT)
-#define OPC_POP_r32	(0x58)
-#define OPC_PUSH_r32	(0x50)
-#define OPC_PUSH_Iv	(0x68)
-#define OPC_PUSH_Ib	(0x6a)
-#define OPC_RET		(0xc3)
-#define OPC_SETCC	(0x90 | P_EXT | P_REXB_RM) /* ... plus cc */
-#define OPC_SHIFT_1	(0xd1)
-#define OPC_SHIFT_Ib	(0xc1)
-#define OPC_SHIFT_cl	(0xd3)
-#define OPC_TESTL	(0x85)
-#define OPC_XCHG_ax_r32	(0x90)
+#define OPC_MOVSBL        (0xbe | P_EXT)
+#define OPC_MOVSWL        (0xbf | P_EXT)
+#define OPC_MOVSLQ        (0x63 | P_REXW)
+#define OPC_MOVZBL        (0xb6 | P_EXT)
+#define OPC_MOVZWL        (0xb7 | P_EXT)
+#define OPC_POP_r32        (0x58)
+#define OPC_PUSH_r32        (0x50)
+#define OPC_PUSH_Iv        (0x68)
+#define OPC_PUSH_Ib        (0x6a)
+#define OPC_RET                (0xc3)
+#define OPC_SETCC        (0x90 | P_EXT | P_REXB_RM) /* ... plus cc */
+#define OPC_SHIFT_1        (0xd1)
+#define OPC_SHIFT_Ib        (0xc1)
+#define OPC_SHIFT_cl        (0xd3)
+#define OPC_TESTL        (0x85)
+#define OPC_XCHG_ax_r32        (0x90)
 
-#define OPC_GRP3_Ev	(0xf7)
-#define OPC_GRP5	(0xff)
+#define OPC_GRP3_Ev        (0xf7)
+#define OPC_GRP5        (0xff)
 
 /* Group 1 opcode extensions for 0x80-0x83.
    These are also used as modifiers for OPC_ARITH.  */
@@ -312,10 +312,10 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define EXT3_IDIV  7
 
 /* Group 5 opcode extensions for 0xff.  To be used with OPC_GRP5.  */
-#define EXT5_INC_Ev	0
-#define EXT5_DEC_Ev	1
-#define EXT5_CALLN_Ev	2
-#define EXT5_JMPN_Ev	4
+#define EXT5_INC_Ev        0
+#define EXT5_DEC_Ev        1
+#define EXT5_CALLN_Ev        2
+#define EXT5_JMPN_Ev        4
 
 /* Condition codes to be added to OPC_JCC_{long,short}.  */
 #define JCC_JMP (-1)
@@ -364,10 +364,10 @@ static void tcg_out_opc(TCGContext *s, int opc, int r, int rm, int x)
     }
 
     rex = 0;
-    rex |= (opc & P_REXW) >> 8;		/* REX.W */
-    rex |= (r & 8) >> 1;		/* REX.R */
-    rex |= (x & 8) >> 2;		/* REX.X */
-    rex |= (rm & 8) >> 3;		/* REX.B */
+    rex |= (opc & P_REXW) >> 8;                /* REX.W */
+    rex |= (r & 8) >> 1;                /* REX.R */
+    rex |= (x & 8) >> 2;                /* REX.X */
+    rex |= (rm & 8) >> 3;                /* REX.B */
 
     /* P_REXB_{R,RM} indicates that the given register is the low byte.
        For %[abcd]l we need no REX prefix, but for %{si,di,bp,sp}l we do,

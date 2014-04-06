@@ -324,7 +324,7 @@ int cpu_exec(CPUState *env1)
 #elif defined(TARGET_ARM)
                     do_interrupt(env);
 #elif defined(TARGET_SH4)
-		    do_interrupt(env);
+                    do_interrupt(env);
 #elif defined(TARGET_ALPHA)
                     do_interrupt(env);
 #elif defined(TARGET_CRIS)
@@ -389,7 +389,7 @@ int cpu_exec(CPUState *env1)
                             env->hflags2 |= HF2_NMI_MASK;
                             do_interrupt(EXCP02_NMI, 0, 0, 0, 1);
                             next_tb = 0;
-			} else if (interrupt_request & CPU_INTERRUPT_MCE) {
+                        } else if (interrupt_request & CPU_INTERRUPT_MCE) {
                             env->interrupt_request &= ~CPU_INTERRUPT_MCE;
                             do_interrupt(EXCP12_MCHK, 0, 0, 0, 0);
                             next_tb = 0;
@@ -477,10 +477,10 @@ int cpu_exec(CPUState *env1)
                                 next_tb = 0;
                             }
                         }
-		    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
-			//do_interrupt(0, 0, 0, 0, 0);
-			env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
-		    }
+                    } else if (interrupt_request & CPU_INTERRUPT_TIMER) {
+                        //do_interrupt(0, 0, 0, 0, 0);
+                        env->interrupt_request &= ~CPU_INTERRUPT_TIMER;
+                    }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
                         && !(env->uncached_cpsr & CPSR_F)) {
@@ -914,61 +914,61 @@ int cpu_signal_handler(int host_signum, void *pinfo,
  */
 #ifdef linux
 /* All Registers access - only for local access */
-# define REG_sig(reg_name, context)		((context)->uc_mcontext.regs->reg_name)
+# define REG_sig(reg_name, context)                ((context)->uc_mcontext.regs->reg_name)
 /* Gpr Registers access  */
-# define GPR_sig(reg_num, context)		REG_sig(gpr[reg_num], context)
-# define IAR_sig(context)			REG_sig(nip, context)	/* Program counter */
-# define MSR_sig(context)			REG_sig(msr, context)   /* Machine State Register (Supervisor) */
-# define CTR_sig(context)			REG_sig(ctr, context)   /* Count register */
-# define XER_sig(context)			REG_sig(xer, context) /* User's integer exception register */
-# define LR_sig(context)			REG_sig(link, context) /* Link register */
-# define CR_sig(context)			REG_sig(ccr, context) /* Condition register */
+# define GPR_sig(reg_num, context)                REG_sig(gpr[reg_num], context)
+# define IAR_sig(context)                        REG_sig(nip, context)        /* Program counter */
+# define MSR_sig(context)                        REG_sig(msr, context)   /* Machine State Register (Supervisor) */
+# define CTR_sig(context)                        REG_sig(ctr, context)   /* Count register */
+# define XER_sig(context)                        REG_sig(xer, context) /* User's integer exception register */
+# define LR_sig(context)                        REG_sig(link, context) /* Link register */
+# define CR_sig(context)                        REG_sig(ccr, context) /* Condition register */
 /* Float Registers access  */
-# define FLOAT_sig(reg_num, context)		(((double*)((char*)((context)->uc_mcontext.regs+48*4)))[reg_num])
-# define FPSCR_sig(context)			(*(int*)((char*)((context)->uc_mcontext.regs+(48+32*2)*4)))
+# define FLOAT_sig(reg_num, context)                (((double*)((char*)((context)->uc_mcontext.regs+48*4)))[reg_num])
+# define FPSCR_sig(context)                        (*(int*)((char*)((context)->uc_mcontext.regs+(48+32*2)*4)))
 /* Exception Registers access */
-# define DAR_sig(context)			REG_sig(dar, context)
-# define DSISR_sig(context)			REG_sig(dsisr, context)
-# define TRAP_sig(context)			REG_sig(trap, context)
+# define DAR_sig(context)                        REG_sig(dar, context)
+# define DSISR_sig(context)                        REG_sig(dsisr, context)
+# define TRAP_sig(context)                        REG_sig(trap, context)
 #endif /* linux */
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <ucontext.h>
-# define IAR_sig(context)		((context)->uc_mcontext.mc_srr0)
-# define MSR_sig(context)		((context)->uc_mcontext.mc_srr1)
-# define CTR_sig(context)		((context)->uc_mcontext.mc_ctr)
-# define XER_sig(context)		((context)->uc_mcontext.mc_xer)
-# define LR_sig(context)		((context)->uc_mcontext.mc_lr)
-# define CR_sig(context)		((context)->uc_mcontext.mc_cr)
+# define IAR_sig(context)                ((context)->uc_mcontext.mc_srr0)
+# define MSR_sig(context)                ((context)->uc_mcontext.mc_srr1)
+# define CTR_sig(context)                ((context)->uc_mcontext.mc_ctr)
+# define XER_sig(context)                ((context)->uc_mcontext.mc_xer)
+# define LR_sig(context)                ((context)->uc_mcontext.mc_lr)
+# define CR_sig(context)                ((context)->uc_mcontext.mc_cr)
 /* Exception Registers access */
-# define DAR_sig(context)		((context)->uc_mcontext.mc_dar)
-# define DSISR_sig(context)		((context)->uc_mcontext.mc_dsisr)
-# define TRAP_sig(context)		((context)->uc_mcontext.mc_exc)
+# define DAR_sig(context)                ((context)->uc_mcontext.mc_dar)
+# define DSISR_sig(context)                ((context)->uc_mcontext.mc_dsisr)
+# define TRAP_sig(context)                ((context)->uc_mcontext.mc_exc)
 #endif /* __FreeBSD__|| __FreeBSD_kernel__ */
 
 #ifdef __APPLE__
 # include <sys/ucontext.h>
 typedef struct ucontext SIGCONTEXT;
 /* All Registers access - only for local access */
-# define REG_sig(reg_name, context)		((context)->uc_mcontext->ss.reg_name)
-# define FLOATREG_sig(reg_name, context)	((context)->uc_mcontext->fs.reg_name)
-# define EXCEPREG_sig(reg_name, context)	((context)->uc_mcontext->es.reg_name)
-# define VECREG_sig(reg_name, context)		((context)->uc_mcontext->vs.reg_name)
+# define REG_sig(reg_name, context)                ((context)->uc_mcontext->ss.reg_name)
+# define FLOATREG_sig(reg_name, context)        ((context)->uc_mcontext->fs.reg_name)
+# define EXCEPREG_sig(reg_name, context)        ((context)->uc_mcontext->es.reg_name)
+# define VECREG_sig(reg_name, context)                ((context)->uc_mcontext->vs.reg_name)
 /* Gpr Registers access */
-# define GPR_sig(reg_num, context)		REG_sig(r##reg_num, context)
-# define IAR_sig(context)			REG_sig(srr0, context)	/* Program counter */
-# define MSR_sig(context)			REG_sig(srr1, context)  /* Machine State Register (Supervisor) */
-# define CTR_sig(context)			REG_sig(ctr, context)
-# define XER_sig(context)			REG_sig(xer, context) /* Link register */
-# define LR_sig(context)			REG_sig(lr, context)  /* User's integer exception register */
-# define CR_sig(context)			REG_sig(cr, context)  /* Condition register */
+# define GPR_sig(reg_num, context)                REG_sig(r##reg_num, context)
+# define IAR_sig(context)                        REG_sig(srr0, context)        /* Program counter */
+# define MSR_sig(context)                        REG_sig(srr1, context)  /* Machine State Register (Supervisor) */
+# define CTR_sig(context)                        REG_sig(ctr, context)
+# define XER_sig(context)                        REG_sig(xer, context) /* Link register */
+# define LR_sig(context)                        REG_sig(lr, context)  /* User's integer exception register */
+# define CR_sig(context)                        REG_sig(cr, context)  /* Condition register */
 /* Float Registers access */
-# define FLOAT_sig(reg_num, context)		FLOATREG_sig(fpregs[reg_num], context)
-# define FPSCR_sig(context)			((double)FLOATREG_sig(fpscr, context))
+# define FLOAT_sig(reg_num, context)                FLOATREG_sig(fpregs[reg_num], context)
+# define FPSCR_sig(context)                        ((double)FLOATREG_sig(fpscr, context))
 /* Exception Registers access */
-# define DAR_sig(context)			EXCEPREG_sig(dar, context)     /* Fault registers for coredump */
-# define DSISR_sig(context)			EXCEPREG_sig(dsisr, context)
-# define TRAP_sig(context)			EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
+# define DAR_sig(context)                        EXCEPREG_sig(dar, context)     /* Fault registers for coredump */
+# define DSISR_sig(context)                        EXCEPREG_sig(dsisr, context)
+# define TRAP_sig(context)                        EXCEPREG_sig(exception, context) /* number of powerpc exception taken */
 #endif /* __APPLE__ */
 
 int cpu_signal_handler(int host_signum, void *pinfo,
@@ -1021,7 +1021,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
     case 0x2d: // stq
     case 0x2e: // stl_c
     case 0x2f: // stq_c
-	is_write = 1;
+        is_write = 1;
     }
 
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
@@ -1076,8 +1076,8 @@ int cpu_signal_handler(int host_signum, void *pinfo,
       case 0x25: // stfsr
       case 0x3c: // casa
       case 0x3e: // casxa
-	is_write = 1;
-	break;
+        is_write = 1;
+        break;
       }
     }
     return handle_cpu_signal(pc, (unsigned long)info->si_addr,
@@ -1128,7 +1128,7 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
 #ifndef __ISR_VALID
   /* This ought to be in <bits/siginfo.h>... */
-# define __ISR_VALID	1
+# define __ISR_VALID        1
 #endif
 
 int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
@@ -1145,13 +1145,13 @@ int cpu_signal_handler(int host_signum, void *pinfo, void *puc)
       case SIGSEGV:
       case SIGBUS:
       case SIGTRAP:
-	  if (info->si_code && (info->si_segvflags & __ISR_VALID))
-	      /* ISR.W (write-access) is bit 33:  */
-	      is_write = (info->si_isr >> 33) & 1;
-	  break;
+          if (info->si_code && (info->si_segvflags & __ISR_VALID))
+              /* ISR.W (write-access) is bit 33:  */
+              is_write = (info->si_isr >> 33) & 1;
+          break;
 
       default:
-	  break;
+          break;
     }
     return handle_cpu_signal(ip, (unsigned long)info->si_addr,
                              is_write,

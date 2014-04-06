@@ -2732,7 +2732,7 @@ static void gen_eob(DisasContext *s)
     if (s->singlestep_enabled) {
         gen_helper_debug();
     } else if (s->tf) {
-	gen_helper_single_step();
+        gen_helper_single_step();
     } else {
         tcg_gen_exit_tb(0);
     }
@@ -3490,7 +3490,7 @@ static void gen_sse(DisasContext *s, int b, target_ulong pc_start, int rex_r)
         case 0x172:
         case 0x173:
             if (b1 >= 2) {
-	        goto illegal_op;
+                goto illegal_op;
             }
             val = ldub_code(s->pc++);
             if (is_xmm) {
@@ -4660,11 +4660,11 @@ static target_ulong disas_insn(CPUState *env, DisasContext *s, target_ulong pc_s
             gen_op_jmp_T0();
 
 #ifdef ENABLE_OPTIMIZATION
-	    TCGv ibtc_guest_eip = tcg_temp_local_new();
-	    tcg_gen_mov_tl(ibtc_guest_eip, cpu_T[0]);
+            TCGv ibtc_guest_eip = tcg_temp_local_new();
+            tcg_gen_mov_tl(ibtc_guest_eip, cpu_T[0]);
             push_shack(env, cpu_env, next_eip);
-	    gen_ibtc_stub(s, ibtc_guest_eip);
-	    tcg_temp_free(ibtc_guest_eip);
+            gen_ibtc_stub(s, ibtc_guest_eip);
+            tcg_temp_free(ibtc_guest_eip);
 #endif
 
             gen_eob(s);
@@ -6314,7 +6314,7 @@ static target_ulong disas_insn(CPUState *env, DisasContext *s, target_ulong pc_s
             gen_push_T0(s);
 
 #ifdef ENABLE_OPTIMIZATION
-	    push_shack(env, cpu_env, next_eip);
+            push_shack(env, cpu_env, next_eip);
 #endif
             gen_jmp(s, tval);
         }
