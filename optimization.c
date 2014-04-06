@@ -59,6 +59,9 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
  */
 __thread int update_ibtc;
 
+static struct ibtc_table *itbc_tbl;
+static target_ulong itbc_query_eip;
+
 /*
  * helper_lookup_ibtc()
  *  Look up IBTC. Return next host eip if cache hit or
@@ -66,7 +69,14 @@ __thread int update_ibtc;
  */
 void *helper_lookup_ibtc(target_ulong guest_eip)
 {
-    return optimization_ret_addr;
+    const target_ulong idx = guest_eip & IBTC_CACHE_MASK;
+    itbc_query_eip = guest_eip;
+    if (guest_eip == itbc_tbl->htable[idx].guest_eip) {
+        return itbc_tbl->htable[idx].tb;
+    } else {
+        update_ibtc = 1;
+        return optimization_ret_addr;
+    }
 }
 
 /*
@@ -75,6 +85,10 @@ void *helper_lookup_ibtc(target_ulong guest_eip)
  */
 void update_ibtc_entry(TranslationBlock *tb)
 {
+    const target_ulong idx = itbc_query_eip & IBTC_CACHE_MASK;
+    itbc_tbl->htable[idx].guest_eip = itbc_query_eip;
+    itbc_tbl->htable[idx].tb = tb;
+    update_ibtc = 0;
 }
 
 /*
@@ -83,6 +97,8 @@ void update_ibtc_entry(TranslationBlock *tb)
  */
 static inline void ibtc_init(CPUState *env)
 {
+    itbc_tbl = (struct ibtc_table*)malloc(sizeof (struct ibtc_table));
+    memset(itbc_tbl, 0, sizeof(struct ibtc_table));
 }
 
 /*
@@ -93,7 +109,6 @@ int init_optimizations(CPUState *env)
 {
     shack_init(env);
     ibtc_init(env);
-
     return 0;
 }
 
