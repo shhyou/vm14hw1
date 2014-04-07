@@ -10,14 +10,6 @@
 #define ENABLE_OPTIMIZATION
 
 /*
- * Link list facilities
- */
-struct list_head {
-    struct list_head *next, *prev;
-};
-typedef struct list_head list_t;
-
-/*
  * Shadow Stack
  */
 
@@ -44,16 +36,12 @@ typedef struct list_head list_t;
 
 struct shadow_pair
 {
-    struct list_head l;
     target_ulong guest_eip;
-    unsigned long *shadow_slot;
+    target_ulong *shadow_slot;
+    struct shadow_pair *next;
 };
 
 void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip);
-inline static void insert_unresolved_eip(CPUState *env, target_ulong next_eip, unsigned long *slot) {
-    ///TODO
-}
-unsigned long lookup_shadow_ret_addr(CPUState *env, target_ulong pc);
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip);
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip);
 
