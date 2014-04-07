@@ -72,7 +72,6 @@ static TranslationBlock *tb_find_host(CPUState* env, target_ulong pc) {
     target_ulong virt_page2, cs_base, pc_;
     int flags;
     cpu_get_tb_cpu_state(env, &pc_, &cs_base, &flags);
-//fprintf(stderr, "query_pc=%x,cs_base=%x,flags=%x\n", pc, cs_base, flags);
 
     tb_invalidated_flag = 0;
 
@@ -113,13 +112,10 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     TranslationBlock *tb = tb_find_host(env, next_eip);
     TCGv_ptr shack_top_ptr = tcg_temp_new(), shack_end_ptr = tcg_temp_new();
     uint8_t* host_pc = NULL;
-//fprintf(stderr, "push_shack: next_eip=%x, tb=%p, stk_diff=%lx", next_eip, tb, stk_diff);
     if (tb != NULL) {
       host_pc = tb->tc_ptr;
-//fprintf(stderr, ", host_pc=%p\n", host_pc);
     } else {
       // XXX TODO: insert to hash table
-//fprintf(stderr, "\n");
     }
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
@@ -173,7 +169,6 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
     TCGv_ptr shack_top_ptr = tcg_temp_new(), host_eip = tcg_temp_local_new();
     TCGv_ptr guest_eip = tcg_temp_new_ptr();
     int lbl_else = gen_new_label();
-//fprintf(stderr, "pop_shack: lbl_else=%d\n", lbl_else);
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       guest_eip = *shack_top_ptr;
