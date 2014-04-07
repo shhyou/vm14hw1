@@ -435,13 +435,8 @@ int cpu_exec(CPUState *env1)
                 if (likely(!env->exit_request)) {
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
-#if defined(__sparc__) && !defined(CONFIG_SOLARIS)
-#undef env
-                    env = cpu_single_env;
-#define env cpu_single_env
-#endif
-
 #ifdef ENABLE_OPTIMIZATION
+printf("shack_top=%p\n",env->shack_top);
                     if (unlikely(update_ibtc == 1))
                         update_ibtc_entry(tb);
 #endif
