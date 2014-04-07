@@ -436,7 +436,7 @@ int cpu_exec(CPUState *env1)
                     tc_ptr = tb->tc_ptr;
                 /* execute the generated code */
 #ifdef ENABLE_OPTIMIZATION
-printf("shack_top=%p\n",env->shack_top);
+//printf("shack_top=%p\n",env->shack_top);
                     if (unlikely(update_ibtc == 1))
                         update_ibtc_entry(tb);
 #endif

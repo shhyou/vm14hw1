@@ -51,7 +51,14 @@ void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host
  */
 void helper_shack_flush(CPUState *env)
 {
+    env->shack_top = env->shack_end + SHACK_SIZE - 1;
 }
+
+void helper_print_shack(CPUState *env)
+{
+    printf("shack_top=%p,shack_end=%p\n",env->shack_top,env->shack_end);
+}
+
 
 /*
  * tb_find_host
@@ -65,7 +72,7 @@ static TranslationBlock *tb_find_host(CPUState* env, target_ulong pc) {
     target_ulong virt_page2, cs_base, pc_;
     int flags;
     cpu_get_tb_cpu_state(env, &pc_, &cs_base, &flags);
-fprintf(stderr, "query_pc=%x,cs_base=%x,flags=%x\n", pc, cs_base, flags);
+//fprintf(stderr, "query_pc=%x,cs_base=%x,flags=%x\n", pc, cs_base, flags);
 
     tb_invalidated_flag = 0;
 
@@ -102,17 +109,38 @@ fprintf(stderr, "query_pc=%x,cs_base=%x,flags=%x\n", pc, cs_base, flags);
  */
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 {
+    int lbl_push = gen_new_label();
     TranslationBlock *tb = tb_find_host(env, next_eip);
+    TCGv_ptr shack_top_ptr = tcg_temp_new(), shack_end_ptr = tcg_temp_new();
     uint8_t* host_pc = NULL;
-    TCGv_ptr shack_top_ptr = tcg_temp_new();
-fprintf(stderr, "push_shack: next_eip=%x, tb=%p, stk_diff=%lx", next_eip, tb, stk_diff);
+//fprintf(stderr, "push_shack: next_eip=%x, tb=%p, stk_diff=%lx", next_eip, tb, stk_diff);
     if (tb != NULL) {
       host_pc = tb->tc_ptr;
-fprintf(stderr, ", host_pc=%p\n", host_pc);
+//fprintf(stderr, ", host_pc=%p\n", host_pc);
     } else {
       // XXX TODO: insert to hash table
-fprintf(stderr, "\n");
+//fprintf(stderr, "\n");
     }
+    /*
+      target_ulong* shack_top_ptr = cpu_env->shack_top
+      target_ulong* shack_end_ptr = cpu_env->shack_end
+      if (shack_top_ptr == shack_end_ptr) {
+        shack_top_ptr = cpu_env->shack + SHACK_SIZE - 1
+      } else {
+      }
+    */
+    tcg_gen_ld_ptr(
+      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
+    tcg_gen_ld_ptr(
+      shack_end_ptr, cpu_env, offsetof(CPUState, shack_end));
+    tcg_gen_brcond_ptr(
+      TCG_COND_NE, shack_top_ptr, shack_end_ptr, lbl_push);
+    tcg_gen_ld_ptr(
+      shack_top_ptr, cpu_env, offsetof(CPUState, shack));
+    tcg_gen_add_ptr(
+      shack_top_ptr, shack_top_ptr, tcg_const_ptr(sizeof(target_ulong)*(SHACK_SIZE-1)));
+    tcg_gen_st_ptr(
+      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       shack_top_ptr -= sizeof(target_ulong*)
@@ -120,6 +148,7 @@ fprintf(stderr, "\n");
       *(shack_top_ptr + stk_diff) = host_eip
       cpu_env->shack_top = shack_top_ptr
     */
+    gen_set_label(lbl_push);
     tcg_gen_ld_ptr(
       shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_add_ptr(
@@ -132,6 +161,7 @@ fprintf(stderr, "\n");
       tcg_const_ptr((unsigned long)host_pc),
       shack_top_ptr, stk_diff);
     tcg_temp_free(shack_top_ptr);
+    tcg_temp_free(shack_end_ptr);
 }
 
 /*
@@ -140,10 +170,10 @@ fprintf(stderr, "\n");
  */
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
 {
-    TCGv_ptr shack_top_ptr = tcg_temp_local_new(), host_eip = tcg_temp_local_new();
+    TCGv_ptr shack_top_ptr = tcg_temp_new(), host_eip = tcg_temp_local_new();
     TCGv_ptr guest_eip = tcg_temp_new_ptr();
     int lbl_else = gen_new_label();
-fprintf(stderr, "pop_shack: lbl_else=%d\n", lbl_else);
+//fprintf(stderr, "pop_shack: lbl_else=%d\n", lbl_else);
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       guest_eip = *shack_top_ptr;
@@ -167,6 +197,8 @@ fprintf(stderr, "pop_shack: lbl_else=%d\n", lbl_else);
     /* reload `shack_top_ptr`: It's a temporary (not a "local" temporary),
      * hence is dead after the branch `brcond`
      */
+    tcg_gen_ld_ptr(
+      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_ld_ptr(
       host_eip, shack_top_ptr, stk_diff);
     tcg_gen_add_ptr(
