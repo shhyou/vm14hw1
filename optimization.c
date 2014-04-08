@@ -85,18 +85,19 @@ void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host
     int idx = guest_eip & (MAX_CALL_SLOT - 1);
     struct shadow_pair *pr = hash_tbl[idx], **prev_ptr = &hash_tbl[idx], *tmp;
     while (pr != NULL) {
-      if (guest_eip!=pr->guest_eip) {
+//      printf("pr:%x, guest:%x\n", pr->guest_eip, guest_eip);
+      if (guest_eip != pr->guest_eip) {
         prev_ptr = &pr->next;
         pr = pr->next;
         continue;
       }
       if(guest_eip == *pr->shadow_slot) {
-//        printf("get pair (%x,%p) -> %p\n", pr->guest_eip, pr->shadow_slot, host_eip);
+//        printf("  get pair (%x,%p) -> %p\n", pr->guest_eip, pr->shadow_slot, host_eip);
         *((unsigned long**)((unsigned long)pr->shadow_slot + stk_diff)) = host_eip;
       } else {
-//        printf("get pair (%x,%p)!-> %p\n", pr->guest_eip, pr->shadow_slot, host_eip);
+//        printf("  get pair (%x,%p)!-> %p\n", pr->guest_eip, pr->shadow_slot, host_eip);
       }
-      (*prev_ptr)->next = pr->next;
+      *prev_ptr = pr->next;
       tmp = pr->next;
       free(pr);
       pr = tmp;
@@ -152,11 +153,11 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     tcg_gen_brcond_ptr(
       TCG_COND_NE, shack_top_ptr, shack_end_ptr, lbl_push);
     //flush shadow stack
-    gen_helper_print_shack(cpu_env);
     tcg_gen_ld_ptr(
       shack_top_ptr, cpu_env, offsetof(CPUState, shack));
     tcg_gen_add_ptr(
-      shack_top_ptr, shack_top_ptr, tcg_const_ptr(sizeof(target_ulong)*(SHACK_SIZE-1)));
+      shack_top_ptr, shack_top_ptr,
+      tcg_const_ptr(sizeof(target_ulong)*(SHACK_SIZE-1)));
     tcg_gen_st_ptr(
       shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     /*
@@ -178,6 +179,10 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     tcg_gen_st_ptr(
       tcg_const_ptr((unsigned long)host_pc), shack_top_ptr, stk_diff);
     if (unlikely(tb == NULL)) {
+      //note: this is wrong
+      //might be executed many times
+      //each run should allocate a new slot
+      //that's why we need Y
       tcg_gen_st_ptr(
         shack_top_ptr, tcg_const_ptr((unsigned long)pr),
         offsetof(struct shadow_pair, shadow_slot));
