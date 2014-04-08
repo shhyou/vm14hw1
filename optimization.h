@@ -37,7 +37,7 @@
 struct shadow_pair
 {
     target_ulong guest_eip;
-    target_ulong *shadow_slot;
+    unsigned long **shadow_slot;
     struct shadow_pair *next;
 };
 

@@ -15,48 +15,6 @@
 extern uint8_t *optimization_ret_addr;
 
 /*
- * tb_find_host
- *  find the *tb given a guest_eip
- *  returns NULL if not found
- */
-static TranslationBlock *tb_find_host(CPUState* env, target_ulong pc) {
-    TranslationBlock *tb, **ptb1;
-    unsigned int h;
-    tb_page_addr_t phys_pc, phys_page1, phys_page2;
-    target_ulong virt_page2, cs_base, pc_;
-    int flags;
-    cpu_get_tb_cpu_state(env, &pc_, &cs_base, &flags);
-
-    tb_invalidated_flag = 0;
-
-    /* find translated block using physical mappings */
-    phys_pc = get_page_addr_code(env, pc);
-    phys_page1 = phys_pc & TARGET_PAGE_MASK;
-    phys_page2 = -1;
-    h = tb_phys_hash_func(phys_pc);
-    ptb1 = &tb_phys_hash[h];
-    for(tb = *ptb1; tb != NULL; tb = *ptb1) {
-        if (tb->pc == pc &&
-            tb->page_addr[0] == phys_page1 &&
-            tb->cs_base == cs_base &&
-            tb->flags == flags) {
-            /* check next page if needed */
-            if (tb->page_addr[1] != -1) {
-                virt_page2 = (pc & TARGET_PAGE_MASK) +
-                    TARGET_PAGE_SIZE;
-                phys_page2 = get_page_addr_code(env, virt_page2);
-                if (tb->page_addr[1] == phys_page2)
-                    break;
-            } else {
-                break;
-            }
-        }
-        ptb1 = &tb->phys_hash_next;
-    }
-    return tb;
-}
-
-/*
  * Our stack grows downward, just like x86's stack
  * shack_top ----> +---------------+    |
  *                 +----  ...  ----+    | push
@@ -64,6 +22,19 @@ static TranslationBlock *tb_find_host(CPUState* env, target_ulong pc) {
  */
 static unsigned long stk_diff;
 static struct shadow_pair **hash_tbl;
+static unsigned long slot_idx, **slot_tbl;
+
+static inline void new_slot_block(void) {
+    slot_tbl = (unsigned long**)malloc(sizeof(unsigned long*)*MAX_CALL_SLOT);
+    slot_idx = -1;
+}
+
+static inline unsigned long** alloc_slot(void) {
+  ++slot_idx;
+  if (slot_idx == MAX_CALL_SLOT)
+    new_slot_block();
+  return slot_tbl + slot_idx;
+}
 
 static inline void shack_init(CPUState *env)
 {
@@ -72,8 +43,29 @@ static inline void shack_init(CPUState *env)
     env->shack_top = env->shack + SHACK_SIZE - 1;
     *env->shack_top = 0; /* leave an item for margin: guest_eip=0, never reached */
     stk_diff = ((unsigned long)env->shadow_ret_addr) - ((unsigned long)env->shack);
-    hash_tbl = (struct shadow_pair**)malloc(sizeof(unsigned long)*MAX_CALL_SLOT);
+
+    hash_tbl = (struct shadow_pair**)malloc(sizeof(struct shadow_pair*)*MAX_CALL_SLOT);
     memset(hash_tbl, 0, sizeof(unsigned long)*MAX_CALL_SLOT);
+
+    new_slot_block();
+}
+
+static inline unsigned long** shack_hash_query(target_ulong guest_eip) {
+    int idx = guest_eip & (MAX_CALL_SLOT - 1);
+    struct shadow_pair *pr = hash_tbl[idx];
+    while (pr!=NULL && guest_eip!=pr->guest_eip)
+      pr = pr->next;
+    return pr? pr->shadow_slot : NULL;
+}
+
+static inline unsigned long** shack_hash_insert(target_ulong guest_eip) {
+    int idx = guest_eip & (MAX_CALL_SLOT - 1);
+    struct shadow_pair *pr = (struct shadow_pair*)malloc(sizeof(struct shadow_pair));
+    pr->guest_eip = guest_eip;
+    pr->shadow_slot = alloc_slot();
+    pr->next = hash_tbl[idx];
+    hash_tbl[idx] = pr;
+    return pr->shadow_slot;
 }
 
 /*
@@ -82,31 +74,9 @@ static inline void shack_init(CPUState *env)
  */
 void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
 {
-    int idx = guest_eip & (MAX_CALL_SLOT - 1);
-    struct shadow_pair *pr = hash_tbl[idx], **prev_ptr = &hash_tbl[idx], *tmp;
-    while (pr != NULL) {
-      if (guest_eip != pr->guest_eip) {
-        prev_ptr = &pr->next;
-        pr = pr->next;
-        continue;
-      }
-      if(guest_eip == *pr->shadow_slot) {
-        *((unsigned long**)((unsigned long)pr->shadow_slot + stk_diff)) = host_eip;
-      }
-      *prev_ptr = pr->next;
-      tmp = pr->next;
-      free(pr);
-      pr = tmp;
-    }
-}
-
-/*
- * helper_shack_flush()
- *  Reset shadow stack.
- */
-void helper_shack_flush(CPUState *env)
-{
-    env->shack_top = env->shack + SHACK_SIZE - 1;
+    unsigned long **slot_ptr = shack_hash_query(guest_eip);
+    if (slot_ptr != NULL)
+      *slot_ptr = host_eip;
 }
 
 void helper_print_shack(CPUState *env)
@@ -114,27 +84,17 @@ void helper_print_shack(CPUState *env)
     printf("shack_top=%p,shack=%p\n",env->shack_top,env->shack);
 }
 
-static unsigned long shack_slot_dummy;
-
 /*
  * push_shack()
  *  Push next guest eip into shadow stack.
  */
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 {
-    struct shadow_pair *pr;
     int lbl_push = gen_new_label();
-    TranslationBlock *tb = tb_find_host(env, next_eip);
     TCGv_ptr shack_top_ptr = tcg_temp_new(), shack_end_ptr = tcg_temp_new();
-    uint8_t* host_pc = tb? tb->tc_ptr : NULL;
-    if (tb == NULL) {
-      int idx = next_eip & (MAX_CALL_SLOT - 1);
-      pr = (struct shadow_pair*)malloc(sizeof(struct shadow_pair));
-      pr->guest_eip = next_eip;
-      pr->shadow_slot = NULL;
-      pr->next = hash_tbl[idx];
-      hash_tbl[idx] = pr;
-    }
+    unsigned long **slot_ptr = shack_hash_query(next_eip);
+    if (slot_ptr == NULL)
+      slot_ptr = shack_hash_insert(next_eip);
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       target_ulong* shack_end_ptr = cpu_env->shack
@@ -161,9 +121,9 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       shack_top_ptr -= sizeof(target_ulong*)
-      *shack_top_ptr = next_eip;
-      *(shack_top_ptr + stk_diff) = host_eip
       cpu_env->shack_top = shack_top_ptr
+      *shack_top_ptr = next_eip;
+      *(shack_top_ptr + stk_diff) = slot
     */
     gen_set_label(lbl_push);
     tcg_gen_ld_ptr(
@@ -175,16 +135,7 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
     tcg_gen_st_ptr(
       tcg_const_ptr(next_eip), shack_top_ptr, 0);
     tcg_gen_st_ptr(
-      tcg_const_ptr((unsigned long)host_pc), shack_top_ptr, stk_diff);
-    if (unlikely(tb == NULL)) {
-      tcg_gen_st_ptr(
-        shack_top_ptr, tcg_const_ptr((unsigned long)pr),
-        offsetof(struct shadow_pair, shadow_slot));
-      tcg_gen_st_ptr(
-        tcg_const_ptr((unsigned long)&shack_slot_dummy),
-        tcg_const_ptr((unsigned long)pr),
-        offsetof(struct shadow_pair, shadow_slot));
-    }
+      tcg_const_ptr((unsigned long)slot_ptr), shack_top_ptr, stk_diff);
     tcg_temp_free(shack_top_ptr);
     tcg_temp_free(shack_end_ptr);
 }
@@ -196,16 +147,17 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
 {
     TCGv_ptr shack_top_ptr = tcg_temp_new(), host_eip = tcg_temp_local_new();
-    TCGv_ptr guest_eip = tcg_temp_new_ptr();
+    TCGv_ptr guest_eip = tcg_temp_new_ptr(), slot_ptr = tcg_temp_new_ptr();
     int lbl_else = gen_new_label();
     /*
       target_ulong* shack_top_ptr = cpu_env->shack_top
       guest_eip = *shack_top_ptr;
       if (guest_eip == next_eip) {
-        target_ulong* host_eip = *shack_top_ptr;
+        unsigned long **slot_ptr = *(shack_top_ptr + stk_diff)
         shack_top_ptr += sizeof(target_ulong*)
         cpu_env->shack_top = shack_top_ptr
-        if (host_eip != 0) { //TODO: remove this
+        unsigned long* host_eip = *slot_ptr;
+        if (host_eip != 0) {
           gen jump host_eip
         } else {
         }
@@ -224,18 +176,21 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
     tcg_gen_ld_ptr(
       shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_ld_ptr(
-      host_eip, shack_top_ptr, stk_diff);
+      slot_ptr, shack_top_ptr, stk_diff);
     tcg_gen_add_ptr(
       shack_top_ptr, shack_top_ptr, tcg_const_tl(sizeof(target_ulong)));
     tcg_gen_st_ptr(
       shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
+    tcg_gen_ld_ptr(
+      host_eip, slot_ptr, 0);
     tcg_gen_brcond_ptr(
       TCG_COND_EQ, host_eip, tcg_const_tl(0), lbl_else);
-//    *gen_opc_ptr++ = INDEX_op_jmp;
-//    *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
+    *gen_opc_ptr++ = INDEX_op_jmp;
+    *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
 
     gen_set_label(lbl_else);
     tcg_temp_free_ptr(shack_top_ptr);
+    tcg_temp_free_ptr(slot_ptr);
     tcg_temp_free_ptr(host_eip);
     tcg_temp_free_ptr(guest_eip);
 }
