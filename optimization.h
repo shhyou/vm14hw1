@@ -31,7 +31,9 @@
 #define TCGv TCGv_i64
 #endif
 
-#define MAX_CALL_SLOT   (16 * 1024)
+#define MAX_CALL_SLOT   (64 * 1024)
+#define HASH_SIZE       (64 * 1024)
+#define HASH_MASK       (HASH_SIZE - 1)
 #define SHACK_SIZE      (16 * 1024)
 
 struct shadow_pair

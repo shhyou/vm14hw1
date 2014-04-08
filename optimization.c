@@ -44,14 +44,14 @@ static inline void shack_init(CPUState *env)
     *env->shack_top = 0; /* leave an item for margin: guest_eip=0, never reached */
     stk_diff = ((unsigned long)env->shadow_ret_addr) - ((unsigned long)env->shack);
 
-    hash_tbl = (struct shadow_pair**)malloc(sizeof(struct shadow_pair*)*MAX_CALL_SLOT);
-    memset(hash_tbl, 0, sizeof(unsigned long)*MAX_CALL_SLOT);
+    hash_tbl = (struct shadow_pair**)malloc(sizeof(struct shadow_pair*)*HASH_SIZE);
+    memset(hash_tbl, 0, sizeof(unsigned long)*HASH_SIZE);
 
     new_slot_block();
 }
 
 static inline unsigned long** shack_hash_query(target_ulong guest_eip) {
-    int idx = guest_eip & (MAX_CALL_SLOT - 1);
+    int idx = guest_eip & HASH_MASK;
     struct shadow_pair *pr = hash_tbl[idx];
     while (pr!=NULL && guest_eip!=pr->guest_eip)
       pr = pr->next;
@@ -59,7 +59,7 @@ static inline unsigned long** shack_hash_query(target_ulong guest_eip) {
 }
 
 static inline unsigned long** shack_hash_insert(target_ulong guest_eip) {
-    int idx = guest_eip & (MAX_CALL_SLOT - 1);
+    int idx = guest_eip & HASH_MASK;
     struct shadow_pair *pr = (struct shadow_pair*)malloc(sizeof(struct shadow_pair));
     pr->guest_eip = guest_eip;
     pr->shadow_slot = alloc_slot();
