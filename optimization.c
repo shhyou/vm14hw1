@@ -71,6 +71,9 @@ static inline void shack_init(CPUState *env)
     env->shack_top = env->shack + SHACK_SIZE - 1;
     *env->shack_top = 0; /* leave an item for margin: guest_eip=0, never reached */
     stk_diff = ((unsigned long)env->shadow_ret_addr) - ((unsigned long)env->shack);
+
+    env->call_cache = (struct call_table*)malloc(sizeof(struct call_table));
+    memset(env->call_cache, 0, sizeof(struct call_table));
 }
 
 /*
@@ -79,6 +82,9 @@ static inline void shack_init(CPUState *env)
  */
 void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip)
 {
+    int idx = guest_eip & CALL_CACHE_MASK;
+    env->call_cache->htable[idx].guest_eip = guest_eip;
+    env->call_cache->htable[idx].host_eip = host_eip;
 }
 
 void helper_print_shack(CPUState *env)
@@ -94,53 +100,26 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
 {
     TranslationBlock *tb = tb_find_host(env, next_eip);
     if (tb != NULL) {
-      printf("found tb %p\n", tb);
-      int lbl_push = gen_new_label();
-      TCGv_ptr shack_top_ptr = tcg_temp_new(), shack_end_ptr = tcg_temp_new();
       uint8_t* host_pc = tb? tb->tc_ptr : NULL;
+      TCGv_ptr call_ptr = tcg_temp_new(), guest_eip = tcg_temp_new();
+      TCGv idx = tcg_temp_new();
       /*
-        target_ulong* shack_top_ptr = cpu_env->shack_top
-        target_ulong* shack_end_ptr = cpu_env->shack
-        if (shack_top_ptr == shack_end_ptr) {
-          // flush shadow stack
-          shack_top_ptr = cpu_env->shack + SHACK_SIZE - 1
-        } else {
-        }
+        target_ulong idx = next_eip & CALL_CACHE_MASK;
+        idx *= sizeof(struct call_pair);
+        struct call_pair *call_ptr = (uint8_t*)env->call_cache.htable + idx;
+        call_ptr->guest_eip = next_eip;
+        call_ptr->host_eip = host_eip;
       */
-      tcg_gen_ld_ptr(
-        shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-      tcg_gen_ld_ptr(
-        shack_end_ptr, cpu_env, offsetof(CPUState, shack));
-      tcg_gen_brcond_ptr(
-        TCG_COND_NE, shack_top_ptr, shack_end_ptr, lbl_push);
-      //flush shadow stack
-      tcg_gen_ld_ptr(
-        shack_top_ptr, cpu_env, offsetof(CPUState, shack));
-      tcg_gen_add_ptr(
-        shack_top_ptr, shack_top_ptr,
-        tcg_const_ptr(sizeof(target_ulong)*(SHACK_SIZE-1)));
-      tcg_gen_st_ptr(
-        shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-      /*
-        target_ulong* shack_top_ptr = cpu_env->shack_top
-        shack_top_ptr -= sizeof(target_ulong*)
-        *shack_top_ptr = next_eip;
-        *(shack_top_ptr + stk_diff) = host_eip
-        cpu_env->shack_top = shack_top_ptr
-      */
-      gen_set_label(lbl_push);
-      tcg_gen_ld_ptr(
-        shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-      tcg_gen_add_ptr(
-        shack_top_ptr, shack_top_ptr, tcg_const_tl(-sizeof(target_ulong)));
-      tcg_gen_st_ptr(
-        shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-      tcg_gen_st_ptr(
-        tcg_const_ptr(next_eip), shack_top_ptr, 0);
-      tcg_gen_st_ptr(
-        tcg_const_ptr((unsigned long)host_pc), shack_top_ptr, stk_diff);
-      tcg_temp_free(shack_top_ptr);
-      tcg_temp_free(shack_end_ptr);
+      tcg_gen_movi_tl(guest_eip, next_eip);
+      tcg_gen_and_tl(idx, guest_eip, tcg_const_tl(CALL_CACHE_MASK));
+      tcg_gen_shl_tl(idx, idx, tcg_const_tl(3));
+      tcg_gen_ld_ptr(call_ptr, cpu_env, offsetof(CPUState, call_cache));
+      tcg_gen_add_tl(call_ptr, call_ptr, idx);
+      tcg_gen_st_ptr(guest_eip, call_ptr, 0);
+      tcg_gen_st_ptr(tcg_const_tl((target_ulong)host_pc), call_ptr, sizeof(target_ulong));
+      tcg_temp_free(idx);
+      tcg_temp_free(call_ptr);
+      tcg_temp_free(guest_eip);
     }
 }
 
@@ -150,44 +129,33 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
  */
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
 {
-    TCGv_ptr shack_top_ptr = tcg_temp_new(), host_eip = tcg_temp_new();
-    TCGv_ptr guest_eip = tcg_temp_new_ptr();
+    TCGv_ptr guest_eip = tcg_temp_new_ptr(), host_eip = tcg_temp_local_new();
     int lbl_else = gen_new_label();
+    TCGv_ptr call_ptr = tcg_temp_new_ptr();
+    TCGv idx = tcg_temp_new();
     /*
-      target_ulong* shack_top_ptr = cpu_env->shack_top
-      guest_eip = *shack_top_ptr;
+      target_ulong idx = next_eip & CALL_CACHE_MASK;
+      idx *= sizeof(struct call_pair);
+      struct call_pair *call_ptr = (uint8_t*)env->call_cache.htable + idx;
+      guest_eip = call_ptr->guest_eip;
       if (guest_eip == next_eip) {
-        target_ulong* host_eip = *shack_top_ptr;
-        shack_top_ptr += sizeof(target_ulong*)
-        cpu_env->shack_top = shack_top_ptr
-        gen jump host_eip
-      } else {
       }
     */
-    tcg_gen_ld_ptr(
-      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-    tcg_gen_ld_tl(
-      guest_eip, shack_top_ptr, 0);
-    tcg_gen_brcond_ptr(
-      TCG_COND_NE, guest_eip, next_eip, lbl_else);
-    /* reload `shack_top_ptr`: It's a temporary (not a "local" temporary),
-     * hence is dead after the branch `brcond`
-     */
-    tcg_gen_ld_ptr(
-      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
-    tcg_gen_ld_ptr(
-      host_eip, shack_top_ptr, stk_diff);
-    tcg_gen_add_ptr(
-      shack_top_ptr, shack_top_ptr, tcg_const_tl(sizeof(target_ulong)));
-    tcg_gen_st_ptr(
-      shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
+    tcg_gen_and_tl(idx, guest_eip, tcg_const_tl(CALL_CACHE_MASK));
+    tcg_gen_shl_tl(idx, idx, tcg_const_tl(3));
+    tcg_gen_ld_ptr(call_ptr, cpu_env, offsetof(CPUState, call_cache));
+    tcg_gen_add_tl(call_ptr, call_ptr, idx);
+    tcg_gen_ld_ptr(guest_eip, call_ptr, 0);
+    tcg_gen_ld_ptr(host_eip, call_ptr, sizeof(target_ulong));
+    tcg_gen_brcond_ptr(TCG_COND_NE, next_eip, guest_eip, lbl_else);
     *gen_opc_ptr++ = INDEX_op_jmp;
     *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
 
     gen_set_label(lbl_else);
-    tcg_temp_free_ptr(shack_top_ptr);
     tcg_temp_free_ptr(host_eip);
     tcg_temp_free_ptr(guest_eip);
+    tcg_temp_free_ptr(call_ptr);
+    tcg_temp_free_ptr(idx);
 }
 
 /*

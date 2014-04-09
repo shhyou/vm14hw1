@@ -31,19 +31,23 @@
 #define TCGv TCGv_i64
 #endif
 
-#define MAX_CALL_SLOT   (16 * 1024)
 #define SHACK_SIZE      (16 * 1024)
-
-struct shadow_pair
-{
-    target_ulong guest_eip;
-    target_ulong *shadow_slot;
-    struct shadow_pair *next;
-};
 
 void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host_eip);
 void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip);
 void pop_shack(TCGv_ptr cpu_env, TCGv next_eip);
+
+#define CALL_CACHE_SIZE (64 * 1024)
+#define CALL_CACHE_MASK ((CALL_CACHE_SIZE) - 1)
+
+struct call_pair {
+  target_ulong guest_eip;
+  unsigned long *host_eip;
+};
+
+struct call_table {
+  struct call_pair htable[CALL_CACHE_SIZE];
+};
 
 /*
  * Indirect Branch Target Cache

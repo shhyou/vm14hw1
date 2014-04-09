@@ -213,6 +213,7 @@ typedef struct CPUWatchpoint {
     int kvm_vcpu_dirty;                                                 \
     target_ulong *shack;                                                \
     target_ulong *shack_top;                                            \
-    unsigned long *shadow_ret_addr;
+    unsigned long *shadow_ret_addr;                                     \
+    struct call_table *call_cache;
 
 #endif
