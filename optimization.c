@@ -85,6 +85,17 @@ void shack_set_shadow(CPUState *env, target_ulong guest_eip, unsigned long *host
     int idx = guest_eip & CALL_CACHE_MASK;
     env->call_cache->htable[idx].guest_eip = guest_eip;
     env->call_cache->htable[idx].host_eip = host_eip;
+    //printf("  S call_cache[%x] = (%x,%p)\n", idx, guest_eip, host_eip);
+}
+
+void helper_set_call_cache(CPUState *env, target_ulong guest_eip, target_ulong host_eip) {
+    int idx = guest_eip & CALL_CACHE_MASK;
+    printf("   Scall_cache[%x] = (%x,%x)\n", idx, guest_eip, host_eip);
+}
+
+void helper_print_call_cache(CPUState *env, target_ulong next_eip, target_ulong guest_eip, target_ulong host_eip) {
+    int idx = next_eip & CALL_CACHE_MASK;
+    printf("G   call_cache[%x] = %x (%x,%x)\n", idx, next_eip, guest_eip, host_eip);
 }
 
 void helper_print_shack(CPUState *env)
@@ -117,6 +128,7 @@ void push_shack(CPUState *env, TCGv_ptr cpu_env, target_ulong next_eip)
       tcg_gen_add_tl(call_ptr, call_ptr, idx);
       tcg_gen_st_ptr(guest_eip, call_ptr, 0);
       tcg_gen_st_ptr(tcg_const_tl((target_ulong)host_pc), call_ptr, sizeof(target_ulong));
+      //gen_helper_set_call_cache(cpu_env, guest_eip, tcg_const_tl((target_ulong)host_pc));
       tcg_temp_free(idx);
       tcg_temp_free(call_ptr);
       tcg_temp_free(guest_eip);
@@ -141,12 +153,13 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
       if (guest_eip == next_eip) {
       }
     */
-    tcg_gen_and_tl(idx, guest_eip, tcg_const_tl(CALL_CACHE_MASK));
+    tcg_gen_and_tl(idx, next_eip, tcg_const_tl(CALL_CACHE_MASK));
     tcg_gen_shl_tl(idx, idx, tcg_const_tl(3));
     tcg_gen_ld_ptr(call_ptr, cpu_env, offsetof(CPUState, call_cache));
     tcg_gen_add_tl(call_ptr, call_ptr, idx);
     tcg_gen_ld_ptr(guest_eip, call_ptr, 0);
     tcg_gen_ld_ptr(host_eip, call_ptr, sizeof(target_ulong));
+    //gen_helper_print_call_cache(cpu_env, next_eip, guest_eip, host_eip);
     tcg_gen_brcond_ptr(TCG_COND_NE, next_eip, guest_eip, lbl_else);
     *gen_opc_ptr++ = INDEX_op_jmp;
     *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
