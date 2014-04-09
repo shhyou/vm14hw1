@@ -231,8 +231,8 @@ void pop_shack(TCGv_ptr cpu_env, TCGv next_eip)
       shack_top_ptr, cpu_env, offsetof(CPUState, shack_top));
     tcg_gen_brcond_ptr(
       TCG_COND_EQ, host_eip, tcg_const_tl(0), lbl_else);
-//    *gen_opc_ptr++ = INDEX_op_jmp;
-//    *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
+    *gen_opc_ptr++ = INDEX_op_jmp;
+    *gen_opparam_ptr++ = GET_TCGV_I32(host_eip);
 
     gen_set_label(lbl_else);
     tcg_temp_free_ptr(shack_top_ptr);
