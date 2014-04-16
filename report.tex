@@ -1,0 +1,171 @@
+\documentclass{article}
+\usepackage[margin=2.7cm]{geometry}
+\begin{document}
+\author{CSIE b00902107 Shu-Hung, You}
+\title{Shadow Stack and Indirect Branch Translation Cache Laboratory}
+\date{}
+\maketitle
+(Note: the program only runs on 32-bit linux)
+\section{Implementation}
+\subsection{Shadow Stack}
+The data structures used in shadow stack includes
+\begin{itemize}
+\item \textbf{shadow stack}, a stack that consists of $(guest\_eip,slot\_pointer)$ pairs.
+\item \textbf{hash table}, $h$, a mapping taking \textit{guest\_eip} to \textit{slot\_pointer}. i.e. $h(guest\_eip)=slot\_pointer$
+\item \textbf{slot}s, lots of memory cells that contain the host return addresses
+\end{itemize}
+All \textit{slot\_pointer} points to some memory cell storing the host return address. In our implementation, the \texttt{pop\_shack} function will obtain the host return address by reading the slot pointed by \textit{slot\_pointer} on the shadow stack. Upon a new translation block is created, the \textit{shack\_set\_shadow} will update the slot pointed by $slot\_pointer$ in the hash table.
+
+To be precise,
+\begin{itemize}
+\item \texttt{shack\_set\_shadow} Lookup for \textit{slot\_pointer} in the hash table by \textit{guest\_eip}. If an item is found, say $h(guest\_eip)=ptr$, then set $*ptr \gets host\_eip$.
+\item \texttt{push\_shack}
+\begin{enumerate}
+\item Code generation phase: If the shadow stack is full, flush it by resetting the stack pointer. Lookup for \textit{slot\_pointer} in the hash table. If not found, allocate a new slot.
+\item Runtime: Push the item $(guest\_eip,slot\_pointer)$ to the shadow stack (where the $h(guest\_eip)=slot\_pointer$. This is pre-calculated in code generation phase.)
+\end{enumerate}
+\item \texttt{pop\_shack} If the $guest\_eip$ in shadow stack matches and if $*slot\_pointer$ is non-null, pop the stack and jump to $*slot\_pointer$. Otherwise do nothing.
+\end{itemize}
+\subsection{IBTC}
+We simply creates a direct mapped cache taking \textit{guest\_eip} to \textit{host\_eip}. The implementation is the same as specified in the homework. When \texttt{helper\_lookup\_ibtc} lookup failed, we set the global variable \texttt{update\_ibtc} to 1 to update the cache.
+\subsection{Call Cache}
+This is almost the same as the IBTC cache except that
+\begin{itemize}
+\item It is set in \texttt{push\_shack}
+\item It is also updated in \texttt{shack\_set\_shadow}
+\end{itemize}
+In \texttt{pop\_shack} we simply lookup the cache.
+\subsection{Simple Shadow Stack}
+The is similar to the full shadow stack, yet the hash table and the slot are removed. When pushing to the shadow stack, we try to find the address as in the function \texttt{tb\_find\_slow}. If found, we directly push the \textit{guest\_eip} and \textit{host\_eip} to the shadow stack. If not found, we do nothing.
+\section{Benchmarks}
+\subsection{Specialized Test}
+We have test our program using very simple code to make sure that our optimization is working.
+\begin{enumerate}
+\item shadow stack test and flushing test
+\begin{verbatim}
+global _start           global _start
+[BITS 32]               [BITS 32]
+_start:                 _start:
+  mov ecx, 10000000       xor eax,eax
+_loop:                    call _func
+  call _func              mov ecx, 200
+  loop _loop            _loop:
+finish:                   mov eax, 100000
+  xor eax,eax             call _func
+  xor ebx,ebx             loop _loop
+  inc eax               finish:
+  int 0x80                xor eax,eax
+_func:                    xor ebx,ebx
+  ret                     inc eax
+                          int 0x80
+                        _func:
+                          or eax,eax
+                          jz .bye
+                          dec eax
+                          call _func
+                        .bye:
+                          ret\end{verbatim}
+\item IBTC test
+\begin{verbatim}
+global _start
+[BITS 32]
+_start:
+  mov ecx, 20000000
+  call _func
+_func:
+  pop eax
+  sub esp, 4
+  dec ecx
+  jz  .exit
+  jmp eax
+.exit:
+  xor eax,eax
+  xor ebx,ebx
+  inc eax
+  int 0x80
+\end{verbatim}
+\end{enumerate}
+\subsection{Mibench}
+We have tested the optimizations using the Mibench benchmark suite against QEMU with
+\begin{itemize}
+\item \textit{qemu-noopt}, no optimization
+\item \textit{qemu-defhw}, the old shadow stack specification in the homework
+\item \textit{qemu-shack}, full shadow stack and IBTC
+\item \textit{qemu-nopush-cache}, simple shadow stack, call cache and IBTC
+\item \textit{qemu-nopush}, simple shadow stack and IBTC
+\item \textit{qemu-cache}, call cache and IBTC
+\end{itemize}
+The benchmark is performed by running each program 5 times and removing the extremum running time.
+\begin{center}
+  {\small\begin{tabular}{|c|c|c|c|c|c|c|}
+  \hline
+     & qemu-noopt & qemu-defhw & qemu-shack
+     & qemu-nopush-cache & qemu-nopush & qemu-cache \\
+    \hline
+    dijkstra & 0.150 & 0.157 & 0.150 & 0.150 & 0.153 & 0.150 \\
+    \hline
+    patricia & 1.147 & 1.167 & 0.977 & 0.983 & 1.120 & 0.967 \\
+    \hline
+    stringsearch & 0.010 & 0.010 & 0.010 & 0.010 & 0.010 & 0.010 \\
+    \hline
+    \parbox{1.5cm}{rawcaudio\\ large.pcm} & 0.623 & 0.627 & 0.633 & 0.630 & 0.613 & 0.630 \\
+    \hline
+    \parbox{1.5cm}{rawdaudio\\ large.adpcm} & 0.907 & 0.730 & 0.737 & 0.720 & 0.727 & 0.727 \\
+    \hline
+    crc & 2.377 & 1.763 & 1.657 & 1.690 & 1.683 & 1.817 \\
+    \hline
+    fft & 0.610 & 0.617 & 0.510 & 0.513 & 0.647 & 0.500 \\
+    \hline
+    fft -i & 0.420 & 0.423 & 0.350 & 0.350 & 0.410 & 0.350 \\
+    \hline
+    toast & 1.090 & 1.100 & 1.050 & 1.040 & 1.090 & 1.043 \\
+    \hline
+    untoast & 0.417 & 0.420 & 0.360 & 0.370 & 0.400 & 0.363 \\
+    \hline
+    basicmath\_large & 4.520 & 4.453 & 3.850 & 3.807 & 4.377 & 3.810 \\
+    \hline
+    bitcnts & 0.753 & 0.387 & 0.380 & 0.390 & 0.380 & 0.393 \\
+    \hline
+    qsort\_large & 0.673 & 0.637 & 0.560 & 0.550 & 0.610 & 0.580 \\
+    \hline
+    susan -s & 0.433 & 0.440 & 0.440 & 0.430 & 0.433 & 0.430 \\
+    \hline
+    susan -e & 0.080 & 0.080 & 0.080 & 0.080 & 0.080 & 0.080 \\
+    \hline
+    susan -c & 0.020 & 0.030 & 0.030 & 0.030 & 0.030 & 0.033 \\
+    \hline
+    rijndael e & 0.350 & 0.340 & 0.320 & 0.313 & 0.333 & 0.310 \\
+    \hline
+    rijndael d & 0.340 & 0.327 & 0.310 & 0.310 & 0.327 & 0.307 \\
+    \hline
+    sha & 0.143 & 0.140 & 0.140 & 0.140 & 0.140 & 0.140 \\
+    \hline
+    lout & 0.660 & 0.653 & 0.590 & 0.610 & 0.637 & 0.580 \\
+    \hline
+    cjpeg & 0.090 & 0.090 & 0.090 & 0.090 & 0.090 & 0.090 \\
+    \hline
+    djpeg & 0.040 & 0.040 & 0.040 & 0.040 & 0.040 & 0.040 \\
+    \hline
+    tiff2bw & 0.273 & 0.263 & 0.257 & 0.250 & 0.253 & 0.253 \\
+    \hline
+    madplay & 0.597 & 0.600 & 0.570 & 0.580 & 0.590 & 0.577 \\
+    \hline
+    tiff2rgba & 0.663 & 0.660 & 0.690 & 0.660 & 0.590 & 0.710 \\
+    \hline
+    tiffmedian & 0.510 & 0.513 & 0.510 & 0.510 & 0.510 & 0.503 \\
+    \hline
+    lame & 8.927 & 8.950 & 8.833 & 8.783 & 8.857 & 8.847 \\
+    \hline
+    tiffdither & 0.837 & 0.833 & 0.790 & 0.800 & 0.820 & 0.790 \\
+    \hline
+  \end{tabular}}
+\end{center}
+\section{Discussion}
+As can be seen in the result, the call cache optimization runs roughly as fast as the full shadow stack approach in most test cases. When combined with simple shadow stack, some programs ran faster while some slower. The \texttt{fib} program, however, runs much slower when the shadow stack optimization is no available.
+
+The simple shadow stack optimization alone also improves the performance. It is clearly slower compared to the full shadow stack implementation, but the full implementation does not speed up the program very much. This might due to the overhead of indirect memory load.
+
+Even though the call cache optimization and simple shadow stack alone speed up the program, their combination is somewhat mystery and has no obvious improvement, and the full shadow stack approach almost works the best among the optimizations.
+
+Surprisingly, the old specification in the homework (which requires us to modify the shadow stack directly in \texttt{shack\_set\_shadow}) does improve performance (though not much) in some test cases. This might be caused by function call inside loops so the in the latter runs the code would have been translated.
+\end{document}
