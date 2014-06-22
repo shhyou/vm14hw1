@@ -1,0 +1,169 @@
+# QEMU = /home/suhorng/eval-bench/qemu-shack-cache
+dijkstra_large input.dat
+real 0.15
+real 0.15
+real 0.15
+real 0.15
+real 0.16
+patricia large.udp
+real 0.97
+real 0.98
+real 0.98
+real 0.99
+real 0.99
+search_large
+real 0.01
+real 0.01
+real 0.01
+real 0.01
+real 0.02
+bin/rawcaudio
+real 0.59
+real 0.60
+real 0.66
+real 0.65
+real 0.64
+bin/rawdaudio
+real 0.52
+real 0.54
+real 0.80
+real 0.82
+real 0.83
+crc ../adpcm/data/large.pcm
+real 1.69
+real 1.69
+real 1.69
+real 1.70
+real 1.69
+fft 8 32768
+real 0.52
+real 0.51
+real 0.51
+real 0.52
+real 0.51
+fft 8 32768 -i
+real 0.35
+real 0.35
+real 0.35
+real 0.36
+real 0.35
+bin/toast -fps -c data/large.au
+real 1.04
+real 1.04
+real 1.04
+real 1.04
+real 1.04
+bin/untoast -fps -c data/large.au.run.gsm
+real 0.37
+real 0.36
+real 0.37
+real 0.37
+real 0.37
+basicmath_large
+real 3.69
+real 3.70
+real 3.88
+real 3.85
+real 3.87
+bitcnts 1125000
+real 0.40
+real 0.39
+real 0.39
+real 0.39
+real 0.39
+qsort_large input_large.dat
+real 0.55
+real 0.55
+real 0.56
+real 0.55
+real 0.55
+susan input_large.pgm output_large.smoothing.pgm -s
+real 0.43
+real 0.43
+real 0.43
+real 0.43
+real 0.44
+susan input_large.pgm output_large.edges.pgm -e
+real 0.08
+real 0.08
+real 0.08
+real 0.08
+real 0.08
+susan input_large.pgm output_large.corners.pgm -c
+real 0.03
+real 0.03
+real 0.03
+real 0.03
+real 0.03
+rijndael input_large.asc output_large.enc e 1234567890abcdeffedcba09876543211234567890abcdeffedcba0987654321
+real 0.31
+real 0.31
+real 0.32
+real 0.31
+real 0.33
+rijndael output_large.enc output_large.dec d 1234567890abcdeffedcba09876543211234567890abcdeffedcba0987654321
+real 0.30
+real 0.31
+real 0.31
+real 0.31
+real 0.31
+sha input_large.asc
+real 0.14
+real 0.14
+real 0.14
+real 0.14
+real 0.14
+lout-3.24/lout -I lout-3.24/include -D lout-3.24/data -F lout-3.24/font -C lout-3.24/maps -H lout-3.24/hyph large.lout
+real 0.61
+real 0.60
+real 0.59
+real 0.62
+real 0.73
+jpeg-6a/cjpeg -dct int -progressive -opt -outfile output_large_encode.jpeg input_large.ppm
+real 0.09
+real 0.10
+real 0.09
+real 0.09
+real 0.09
+jpeg-6a/djpeg -dct int -ppm -outfile output_large_decode.ppm input_large.jpg
+real 0.04
+real 0.03
+real 0.04
+real 0.04
+real 0.04
+../tiff-v3.5.4/tools/tiff2bw ../tiff-data/large.tif output_largebw.tif
+real 0.19
+real 0.25
+real 0.25
+real 0.25
+real 0.25
+mad-0.14.2b/madplay --time=30 --output=wave:output_large.wav -v large.mp3
+real 0.59
+real 0.58
+real 0.58
+real 0.57
+real 0.58
+../tiff-v3.5.4/tools/tiff2rgba -c none ../tiff-data/large.tif output_largergba.tif
+real 0.25
+real 0.65
+real 0.83
+real 0.67
+real 0.66
+../tiff-v3.5.4/tools/tiffmedian ../tiff-data/large.tif output_largemedian.tif
+real 0.52
+real 0.50
+real 0.51
+real 0.51
+real 0.51
+lame3.70/lame large.wav output_large.mp3
+real 8.80
+real 8.78
+real 8.80
+real 8.74
+real 8.77
+../tiff-v3.5.4/tools/tiffdither -c g4 ../tiff-data/largebw.tif output_largedither.tif
+real 0.80
+real 0.80
+real 0.80
+real 0.80
+real 0.80

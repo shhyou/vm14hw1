@@ -1,0 +1,36 @@
+qemu-no-opt
+real 5.08
+real 5.11
+real 5.13
+real 5.12
+real 5.07
+qemu-def-hw
+real 5.48
+real 5.48
+real 5.44
+real 5.48
+real 5.47
+qemu-new-shack
+real 2.62
+real 2.65
+real 2.64
+real 2.65
+real 2.56
+qemu-no-push
+real 2.65
+real 2.66
+real 2.54
+real 2.65
+real 2.64
+qemu-call-cache
+real 2.89
+real 2.88
+real 2.86
+real 2.85
+real 2.88
+qemu-shack-cache
+real 2.92
+real 2.96
+real 2.97
+real 2.92
+real 2.90

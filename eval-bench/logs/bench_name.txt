@@ -1,0 +1,28 @@
+dijkstra
+patricia
+stringsearch
+rawcaudio large.pcm
+rawdaudio large.adpcm
+crc
+fft
+fft -i
+toast
+untoast
+basicmath_large
+bitcnts
+qsort_large
+susan -s
+susan -e
+susan -c
+rijndael e
+rijndael d
+sha
+lout
+cjpeg
+djpeg
+tiff2bw
+madplay
+tiff2rgba
+tiffmedian
+lame
+tiffdither
